@@ -2,12 +2,14 @@
 
 這個專案會把 `tiktoken` 裡某一套 tokenizer 的所有 token 逐一解碼，再依照不同的語言判斷方式，把結果輸出成多個文字檔，方便觀察 OpenAI tokenizer 對各種語言、尤其是中文的切分情況。
 
-嚴格來說，這裡常講的「四種 tokenizer」其實不是四個完全不同的分詞器，而是 **2 種 tokenizer 編碼器 × 2 種語言判斷方式** 的四種分析組合：
+嚴格來說，這裡最常看的「四種 tokenizer 分析組合」其實不是四個完全不同的分詞器，而是 **2 種主要 tokenizer 編碼器 × 2 種語言判斷方式** 的四種分析組合：
 
 1. `cl100k_base + langdetect`
 2. `cl100k_base + hanzidentifier`
 3. `o200k_base + langdetect`
 4. `o200k_base + hanzidentifier`
+
+另外，專案現在也支援 `r50k_base` 與 `p50k_base`。如果把這兩個補充編碼器也算進來，總共可以輸出 **4 種編碼器 × 2 種判斷方式 = 8 種組合**。
 
 ## 先用白話理解這個專案
 
@@ -30,15 +32,20 @@
 
 | 編碼器 | 白話理解 | 特性 |
 | --- | --- | --- |
+| `r50k_base` | 更早期、接近 GPT-2 時代的基底字典 | 中文 token 非常稀少，較適合做歷史對照 |
+| `p50k_base` | 與 Codex / 程式碼用途相關的 50k 系列字典 | 與 `r50k_base` 共用大部分 token，另外多出少量純空白 token |
 | `cl100k_base` | 較早一代、很多 OpenAI 模型常見的切法 | 很適合拿來當對照組，看舊一代 tokenizer 怎麼切文字 |
 | `o200k_base` | 較新一代、偏向 GPT-4o 時代的切法 | 通常更能反映新模型對多語言內容的切分方式 |
 
 最簡單的理解方式是：
 
+- `r50k_base` / `p50k_base` 像是「更早期的 50k 字典」
 - `cl100k_base` 像是「上一代字典」
 - `o200k_base` 像是「較新的字典」
 
 同樣一句話，`o200k_base` 有時會比 `cl100k_base` 切得更有效率，尤其在多語混合或現代用語上更值得觀察。
+
+如果你想看更舊一代 tokenizer 對中文的覆蓋情況，可以再把 `r50k_base` / `p50k_base` 當成歷史基準。不過要注意：這兩套字典裡的中文 token 非常少，而且 `p50k_base` 幾乎和 `r50k_base` 相同，主要只多出幾個純空白 token。
 
 ### 第二個維度：語言判斷方式
 
@@ -60,6 +67,17 @@
 | `cl100k_base + hanzidentifier` | 舊一代 tokenizer 對繁中 / 簡中的切分差異如何？ | 中文分類清楚，但非中文幾乎都進 `others` |
 | `o200k_base + langdetect` | 新一代 tokenizer 對多語言切分是否有不同？ | 更接近 GPT-4o 時代的切分觀察方式 |
 | `o200k_base + hanzidentifier` | 新一代 tokenizer 對繁中 / 簡中的支援看起來如何？ | 最適合專看中文，尤其是繁體中文與簡體中文 |
+
+### 補充的四種組合
+
+如果你的目的不是主力分析，而是想把較早期 50k tokenizer 也完整列出來對照，還可以再跑：
+
+| 組合 | 最適合回答的問題 | 你會看到什麼 |
+| --- | --- | --- |
+| `r50k_base + langdetect` | 更早期 50k 字典裡，有哪些 token 被偵測成各語言？ | 中文量很少，多數結果會偏向英文或其他語言 |
+| `r50k_base + hanzidentifier` | 更早期 50k 字典裡，真正帶漢字的 token 有多少？ | `zh-cn` / `zh-tw` 都很少，適合看歷史基準 |
+| `p50k_base + langdetect` | 與 `r50k_base` 相比，額外空白 token 會落到哪裡？ | 幾乎與 `r50k_base` 相同，差別主要在 `unknown.txt` 的空白 token |
+| `p50k_base + hanzidentifier` | `p50k_base` 對漢字分類是否和 `r50k_base` 不同？ | 幾乎相同，可當作完整輸出備查 |
 
 ## 怎麼選才對？
 
@@ -118,12 +136,20 @@ uv run python main.py --encoding-name o200k_base --detect-method hanzidentifier
 ```
 
 ### 四種常用指令
-
 ```sh
 uv run python main.py --encoding-name cl100k_base --detect-method langdetect
 uv run python main.py --encoding-name cl100k_base --detect-method hanzidentifier
 uv run python main.py --encoding-name o200k_base --detect-method langdetect
 uv run python main.py --encoding-name o200k_base --detect-method hanzidentifier
+```
+
+### 四種補充指令
+
+```sh
+uv run python main.py --encoding-name r50k_base --detect-method langdetect
+uv run python main.py --encoding-name r50k_base --detect-method hanzidentifier
+uv run python main.py --encoding-name p50k_base --detect-method langdetect
+uv run python main.py --encoding-name p50k_base --detect-method hanzidentifier
 ```
 
 ## 輸出結果在哪裡？
@@ -132,6 +158,10 @@ uv run python main.py --encoding-name o200k_base --detect-method hanzidentifier
 
 - `cl100k_base-langdetect/`
 - `cl100k_base-hanzidentifier/`
+- `p50k_base-langdetect/`
+- `p50k_base-hanzidentifier/`
+- `r50k_base-langdetect/`
+- `r50k_base-hanzidentifier/`
 - `o200k_base-langdetect/`
 - `o200k_base-hanzidentifier/`
 
@@ -149,6 +179,8 @@ uv run python main.py --encoding-name o200k_base --detect-method hanzidentifier
 1. `langdetect` 面對很短的 token 時，本來就容易猜錯，這不是你操作錯誤，而是因為它看到的可能只是一個符號、單一字母，甚至是半個詞。
 2. `hanzidentifier` 比較像中文專用分類器，所以它很適合比較繁中與簡中，但不適合拿來分析所有語言。
 3. 每次執行時，程式會重新產生目標資料夾底下的 `.txt` 檔，避免重跑後資料重複追加。
+4. `p50k_base` 會比 `r50k_base` 多出幾個純空白 token，所以如果你追求完整輸出，現在的程式會把這些 token 一起寫進 `unknown.txt`。
+5. `r50k_base` / `p50k_base` 的中文 token 明顯比 `cl100k_base` / `o200k_base` 少很多，所以它們的「高污染 token」清單通常會很短，甚至可能幾乎沒有具代表性的污染詞群。
 
 ## 這個專案最值得看的重點
 

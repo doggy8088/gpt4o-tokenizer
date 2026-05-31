@@ -9,7 +9,7 @@ from langdetect.lang_detect_exception import LangDetectException
 import tiktoken
 import hanzidentifier
 
-SUPPORTED_ENCODINGS = ("cl100k_base", "o200k_base")
+SUPPORTED_ENCODINGS = ("r50k_base", "p50k_base", "cl100k_base", "o200k_base")
 SUPPORTED_DETECT_METHODS = ("langdetect", "hanzidentifier")
 
 DetectorFactory.seed = 0
@@ -78,13 +78,17 @@ def prepare_output_dir(output_dir: Path) -> None:
         output_file.unlink()
 
 
+def iter_token_ids(tokenizer: tiktoken.Encoding) -> list[int]:
+    return sorted(tokenizer._mergeable_ranks.values())
+
+
 def export_tokens(encoding_name: str, detect_method: str) -> None:
     tokenizer = tiktoken.get_encoding(encoding_name)
     output_dir = Path(f"{encoding_name}-{detect_method}")
 
     prepare_output_dir(output_dir)
 
-    for i in range(tokenizer.eot_token - 1):
+    for i in iter_token_ids(tokenizer):
         term = tokenizer.decode([i])
         lang = detect_language(term, detect_method)
 
